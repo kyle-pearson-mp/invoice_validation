@@ -40,7 +40,10 @@ def extract_invoice_data(pdf, df):
     filename_po = re.search(r'PO\s*No\.\s*(\d+)', pdf, re.IGNORECASE).group(1).strip()
     print('Filename PO: ', filename_po)
     with pdfplumber.open(pdf) as pdf:
+        i = 0
         for page in pdf.pages:
+            if i > 1:
+                continue
             text = page.extract_text()
             if text:
                 match = re.search(r'\b\d{1,2}/\d{1,2}/\d{4}\s+(\d{5})\b', text)
@@ -48,9 +51,11 @@ def extract_invoice_data(pdf, df):
                     invoice_number = match.group(1)
                     #st.write("Invoice Number:", invoice_number)
     
-                match = re.search(r'TOTAL\s*\$\s*([\d,]+\.\d{2})', text, re.IGNORECASE)
-                if match:
+                #match = re.search(r'TOTAL\s*\$\s*([\d,]+\.\d{2})', text, re.IGNORECASE)
+                match = re.search(r'\bTOTAL\b\s*\$\s*([\d\s,]+\.\d{2})', text)
+                if match and i == 0:
                     total_amount = match.group(1)
+                    total_amount = total_amount.replace(' ','')
                     #print("Extracted amount:", total_amount)
     
                 match = re.search(r"Project\s*Title[:\s]*(.+)", text, re.IGNORECASE)
@@ -73,6 +78,7 @@ def extract_invoice_data(pdf, df):
                 if filename_po != po_num or filename_po != po_num2 or po_num != po_num2:
                     print('Mismatch PO numbers')
                     st.write(f'Filename PO: {filename_po}, First PO: {po_num}, Second PO: {po_num2}')
+                i += 1
     try:
         df = add_row(df, contract, month, invoice_number, total_amount, expense_value, po_num, po_num2, filename_po)
     except:
