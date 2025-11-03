@@ -18,12 +18,13 @@ st.title('Xcel Invoice Extraction')
 
 df = pd.DataFrame()
 folder_path = r"C:\Users\KylePearson\Downloads\Fw_ XCL515 Invoicing Review - May"
-def add_row(df, contract,month, invoice_number, total_amount, po_num, po_num2, filename_po):
+def add_row(df, contract,month, invoice_number, total_amount, expense_value, po_num, po_num2, filename_po):
     new_row = {'Invoice': invoice_number,
                'PO': po_num,
                'Contract': contract,
                'Month': month,
                'Total $': total_amount,
+               "Expenses": expense_value,
                'Month2': month,
                'PO2': po_num2,
                'Filename PO': filename_po}
@@ -35,6 +36,7 @@ def extract_invoice_data(pdf, df):
     print(pdf)
     contract = " ".join(pdf.split(' ')[2:-2])
     month = pdf.split(' ')[-2]
+    expense_value = None
     filename_po = re.search(r'PO\s*No\.\s*(\d+)', pdf, re.IGNORECASE).group(1).strip()
     print('Filename PO: ', filename_po)
     with pdfplumber.open(pdf) as pdf:
@@ -52,7 +54,12 @@ def extract_invoice_data(pdf, df):
                     #print("Extracted amount:", total_amount)
     
                 match = re.search(r"Project\s*Title[:\s]*(.+)", text, re.IGNORECASE)
-                    
+                # NEW: Extract expense value
+                match = re.search(r'Expenses? (?:TOTAL|Subtotal)[^\d]*\$([\d,]+\.\d{2})', text, re.IGNORECASE)
+                if match:
+                    expense_value = match.group(1)
+                    st.write("Extracted expense value:", expense_value)
+                
                 match = re.search(r'PO\s*No\.\s*(\d+)', text, re.IGNORECASE)
                 if match:
                     #data["PO_Number"] = match.group(1).strip()
@@ -67,10 +74,10 @@ def extract_invoice_data(pdf, df):
                     print('Mismatch PO numbers')
                     st.write(f'Filename PO: {filename_po}, First PO: {po_num}, Second PO: {po_num2}')
     try:
-        df = add_row(df, contract, month, invoice_number, total_amount, po_num, po_num2, filename_po)
+        df = add_row(df, contract, month, invoice_number, total_amount, expense_value, po_num, po_num2, filename_po)
     except:
         st.write(text)
-        df = add_row(df, contract, month, invoice_number, None, po_num, po_num2, filename_po)
+        df = add_row(df, contract, month, invoice_number, None, expense_value, po_num, po_num2, filename_po)
     return df
 
 st.title("Upload a ZIP of Invoice PDFs")
